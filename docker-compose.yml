@@ -1,0 +1,106 @@
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: diagnostic-booking-app
+
+    ports:
+      - "3000:3000"
+
+    env_file:
+      - .env
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      mongodb:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+
+  postgres:
+    image: postgres:17-alpine
+
+    container_name: diagnostic-booking-postgres
+
+    environment:
+      POSTGRES_DB: diagnostic_booking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d diagnostic_booking"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+    restart: unless-stopped
+
+
+  mongodb:
+    image: mongo:8
+
+    container_name: diagnostic-booking-mongodb
+
+    ports:
+      - "27017:27017"
+
+    volumes:
+      - mongodb_data:/data/db
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "db.adminCommand('ping').ok"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+    restart: unless-stopped
+
+
+  redis:
+    image: redis:8-alpine
+
+    container_name: diagnostic-booking-redis
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis_data:/data
+
+    command: redis-server --appendonly yes
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+    restart: unless-stopped
+
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  redis_data:
